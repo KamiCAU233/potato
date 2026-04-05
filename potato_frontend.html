@@ -1,0 +1,2345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智薯卫盾——马铃薯病害智能检测系统</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+
+  <!-- ✅ Markdown 渲染（marked） -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- ✅ HTML 安全净化（DOMPurify，强烈推荐） -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+  <!-- （可选）代码高亮 highlight.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+
+  <!-- ✅ DOCX -> HTML（用于“病害百科”直接读取压缩包里的 docx 内容） -->
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary-green: #68b48d;
+      --dark-green: #3a8a64;
+      --light-green: #85c391;
+      --accent-green: #67c18c;
+      --bg-panel: rgba(8, 18, 29, 0.96);
+      --bg-card: rgba(12, 24, 38, 0.98);
+      --bg-fade: rgba(10, 20, 34, 0.85);
+      --text-light: #e7f4e8;
+      --text-muted: #8db9a3;
+      --border: rgba(103, 177, 130, 0.22);
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+      --input-bg: rgba(255, 255, 255, 0.06);
+      --input-border: rgba(115, 169, 116, 0.25);
+      --surface: rgba(16, 30, 46, 0.96);
+      --surface-strong: rgba(20, 42, 63, 0.99);
+      --blue-info: #6cb9f6;
+    }
+
+    body {
+      font-family: 'Noto Sans SC', sans-serif;
+      background: radial-gradient(circle at top, #06131f 0%, #04101b 40%, #03101c 100%);
+      min-height: 100vh;
+      color: var(--text-light);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at top left, rgba(103, 177, 130, 0.14) 0%, transparent 35%);
+      pointer-events: none;
+    }
+
+    @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 24px;
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      border-radius: 24px;
+      overflow: hidden;
+    }
+    .page { display: none; animation: fadeIn 0.4s ease-out; }
+    .page.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 页面1: 首页 */
+    .home-page { text-align: center; padding-top: 70px; }
+
+    .logo {
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: 42px;
+      color: var(--accent-green);
+      margin-bottom: 15px;
+      text-shadow: 0 0 24px rgba(103, 177, 130, 0.45);
+      animation: float 3.5s ease-in-out infinite;
+    }
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-8px); } }
+
+    .subtitle { font-size: 16px; color: var(--text-muted); margin-bottom: 44px; font-weight: 300; }
+
+    .main-button {
+      width: min(320px, 100%);
+      padding: 16px 30px;
+      margin: 14px auto;
+      font-size: 17px;
+      font-weight: 500;
+      color: white;
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--dark-green) 100%);
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22);
+      transition: all 0.25s ease;
+      display: block;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .main-button:hover { transform: translateY(-2px); box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28); }
+    .main-button:active { transform: translateY(-1px); }
+    .main-button.secondary {
+      background: linear-gradient(135deg, rgba(53, 86, 83, 1) 0%, rgba(42, 63, 56, 1) 100%);
+    }
+
+    /* 页面2: 检测入口 */
+    .detection-page { padding-top: 40px; }
+    .page-title { font-size: 28px; color: var(--accent-green); margin-bottom: 30px; text-align: center; font-weight: 500; }
+
+    .upload-area {
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 420px;
+      margin: 0 auto 26px;
+      border: 2px dashed rgba(103, 177, 130, 0.55);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.04);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    .upload-area:hover { border-color: var(--accent-green); background: rgba(103, 177, 130, 0.08); }
+    .upload-area.has-image { border-style: solid; padding: 0; }
+
+    .upload-icon { font-size: 48px; color: var(--accent-green); margin-bottom: 15px; }
+    .upload-text { color: var(--text-muted); font-size: 16px; }
+
+    #preview-image { display: none; width: 100%; height: 100%; object-fit: cover; }
+    #preview-image.show { display: block; }
+
+    .form-group {
+      margin-bottom: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(110, 160, 118, 0.16);
+    }
+    .form-label { display: block; color: var(--text-light); margin-bottom: 10px; font-weight: 500; font-size: 14px; }
+
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--input-border);
+      border-radius: 14px;
+      font-size: 15px;
+      font-family: 'Noto Sans SC', sans-serif;
+      transition: all 0.25s ease;
+      background: var(--input-bg);
+      color: var(--text-light);
+    }
+    .form-textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent-green); background: rgba(255,255,255,0.12); }
+
+    .submit-button {
+      width: 100%;
+      padding: 16px;
+      margin-top: 30px;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--dark-green) 100%);
+      border: none;
+      border-radius: 18px;
+      cursor: pointer;
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.24);
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .submit-button:hover { transform: translateY(-1px); box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28); }
+    .submit-button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .back-button {
+      display: block;
+      margin: 20px auto 0;
+      padding: 12px 30px;
+      background: transparent;
+      border: 1.8px solid rgba(103, 177, 130, 0.9);
+      color: var(--text-light);
+      border-radius: 24px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+      backdrop-filter: blur(6px);
+    }
+    .back-button:hover { background: rgba(103, 177, 130, 0.12); color: white; }
+
+    /* 页面3&5: 结果页面 */
+    .result-container {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+      min-height: 50vh;
+      border: 1px solid rgba(103, 177, 130, 0.12);
+    }
+    .result-title {
+      font-size: 22px;
+      color: var(--accent-green);
+      margin-bottom: 20px;
+      font-weight: 600;
+      border-bottom: 3px solid rgba(103, 177, 130, 0.35);
+      padding-bottom: 10px;
+    }
+    .result-content { line-height: 1.8; color: var(--text-muted); font-size: 15px; }
+
+    .info-box {
+      background: rgba(66, 110, 96, 0.14);
+      padding: 20px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+      border-left: 4px solid rgba(103, 177, 130, 0.9);
+      position: relative;
+      color: var(--text-light);
+    }
+    .info-text { color: var(--text-muted); font-size: 14px; margin-bottom: 15px; line-height: 1.6; }
+
+    .modify-button {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      padding: 10px 22px;
+      background: rgba(103, 177, 130, 0.96);
+      color: #081214;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .modify-button:hover { background: rgba(103, 177, 130, 1); transform: translateY(-1px); }
+
+    .ai-button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--dark-green) 100%);
+      color: white;
+      border: none;
+      border-radius: 18px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .ai-button:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(0, 0, 0, 0.24); }
+
+    /* 页面4: AI助手 - 全新布局 */
+    .ai-page {
+      padding-top: 0;
+      min-height: 100vh;
+      display: flex;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(4, 12, 23, 0.98);
+      z-index: 100;
+      overflow: hidden;
+    }
+
+    /* 左侧边栏 (1/6) */
+    .ai-sidebar {
+      width: 22%;
+      min-width: 240px;
+      background: rgba(11, 24, 38, 0.95);
+      border-right: 1px solid rgba(103, 177, 130, 0.18);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 20px;
+      overflow-y: auto;
+    }
+
+    .model-dropdown-container { margin-bottom: 18px; }
+
+    .model-dropdown {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid rgba(103, 177, 130, 0.25);
+      border-radius: 14px;
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-light);
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .model-dropdown:focus { outline: none; border-color: var(--accent-green); }
+    .model-dropdown:hover { border-color: var(--accent-green); }
+
+    .new-chat-button {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent-green);
+      color: #081214;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.25s ease;
+      margin-bottom: 20px;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .new-chat-button:hover { background: #3e865b; transform: translateY(-1px); }
+
+    .chat-history-section { flex: 1; overflow-y: auto; margin-top: 18px; }
+    .chat-history-title { color: var(--text-muted); font-size: 13px; margin-bottom: 10px; padding-left: 5px; }
+
+    .chat-history-list { display: flex; flex-direction: column; gap: 10px; }
+    .chat-history-item {
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      font-size: 13px;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border: 1px solid transparent;
+    }
+    .chat-history-item:hover { background: rgba(103, 177, 130, 0.12); border-color: rgba(103, 177, 130, 0.25); }
+    .chat-history-item.active { background: rgba(103, 177, 130, 0.2); color: white; border-color: rgba(103, 177, 130, 0.35); }
+
+    .sidebar-back-button {
+      margin-top: auto;
+      padding: 12px;
+      background: transparent;
+      border: 1.5px solid rgba(103, 177, 130, 0.9);
+      color: var(--text-light);
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .sidebar-back-button:hover { background: rgba(103, 177, 130, 0.12); color: white; }
+
+    /* 右侧聊天区域 (5/6) */
+    .ai-chat-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(7, 16, 28, 0.9);
+      padding: 28px 0;
+      border-radius: 28px;
+      border: 1px solid rgba(103, 177, 130, 0.12);
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px 12%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      padding: 14px 18px;
+      border-radius: 20px;
+      line-height: 1.45;
+      animation: slideIn 0.3s ease-out;
+      max-width: 70%;
+      word-break: break-word;
+      display: inline-flex;
+      width: auto;
+    }
+
+    @media (max-width: 940px) {
+      .ai-page { flex-direction: column; }
+      .ai-sidebar { width: 100%; min-width: auto; border-right: none; border-bottom: 1px solid rgba(103, 177, 130, 0.16); }
+      .ai-chat-area { padding: 16px 0; }
+      .chat-messages { padding: 0 6%; }
+      .input-area { flex-wrap: wrap; }
+      .chat-input { min-width: 220px; }
+      .voice-button, .send-button { flex: 1; width: 100%; }
+    }
+
+    /* ✅ 用户消息保留换行 */
+    .message.user { white-space: pre-wrap; }
+
+    /* ✅ AI 消息（Markdown渲染）不要保留标签间空白换行 */
+    .message.ai,
+    .message.ai .md { white-space: normal; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      background: rgba(103, 177, 130, 0.95);
+      color: #081214;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .message.ai {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-light);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .chat-input-wrapper { padding: 20px 15%; }
+
+    .input-area {
+      display: flex;
+      gap: 10px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      padding: 10px;
+      border: 1px solid rgba(103, 177, 130, 0.12);
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 14px 16px;
+      border: none;
+      border-radius: 24px;
+      font-size: 15px;
+      font-family: 'Noto Sans SC', sans-serif;
+      background: transparent;
+      color: var(--text-light);
+    }
+    .chat-input::placeholder { color: rgba(231, 244, 232, 0.5); }
+    .chat-input:focus { outline: none; }
+
+    .voice-button {
+      padding: 12px 18px;
+      background: rgba(103, 177, 130, 0.16);
+      color: var(--text-light);
+      border: 1px solid rgba(103, 177, 130, 0.3);
+      border-radius: 22px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+      white-space: nowrap;
+    }
+    .voice-button.active { background: rgba(103, 177, 130, 0.34); }
+    .voice-button:hover { background: rgba(103, 177, 130, 0.24); }
+
+    .send-button {
+      padding: 12px 25px;
+      background: var(--accent-green);
+      color: white;
+      border: none;
+      border-radius: 22px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.25s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+      white-space: nowrap;
+    }
+    .send-button:hover { background: var(--dark-green); transform: scale(1.03); }
+
+    /* 页面6: 历史记录 */
+    .history-page { padding-top: 40px; }
+    .history-list { display: flex; flex-direction: column; gap: 15px; }
+
+    .history-item {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid rgba(103, 177, 130, 0.16);
+      display: flex;
+      gap: 15px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .history-item:hover { transform: translateY(-3px); box-shadow: 0 6px 16px var(--shadow); }
+
+    .history-image { width: 80px; height: 80px; border-radius: 10px; object-fit: cover; }
+
+    .history-info { flex: 1; }
+    .history-date { color: var(--accent-green); font-size: 13px; margin-bottom: 5px; }
+    .history-result { color: var(--text-dark); font-size: 14px; }
+
+    .empty-state { text-align: center; padding: 100px 20px; color: #999; font-size: 16px; }
+
+    #fileInput { display: none; }
+
+    /* ✅ AI消息里 Markdown 的基础排版（更紧凑） */
+    .message.ai .md { display: inline-block; }
+    .message.ai { line-height: 1.5; }
+    .message.ai .md p { margin: 4px 0; }
+    .message.ai .md ul,
+    .message.ai .md ol { margin: 4px 0 4px 18px; }
+    .message.ai .md li { margin: 2px 0; }
+    .message.ai .md h1,
+    .message.ai .md h2,
+    .message.ai .md h3,
+    .message.ai .md h4 { margin: 6px 0; line-height: 1.25; }
+    .message.ai .md hr { margin: 8px 0; }
+
+    /* =========================
+       页面7：风险检测
+       ========================= */
+    .risk-page { padding-top: 40px; }
+
+    .risk-tabs{
+      display:flex;
+      gap:10px;
+      justify-content:flex-start;
+      margin: 0 auto 18px;
+      max-width: 980px;
+    }
+
+    .risk-tab{
+      padding:10px 14px;
+      border-radius: 12px;
+      border: 2px solid var(--primary-green);
+      background: white;
+      cursor:pointer;
+      font-size:14px;
+      color: var(--dark-green);
+      transition: all .2s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .risk-tab:hover{ border-color: var(--accent-green); transform: translateY(-1px); }
+    .risk-tab.active{
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--dark-green) 100%);
+      color: white;
+      border-color: transparent;
+    }
+
+    .risk-grid{
+      display:grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 900px){
+      .risk-grid{ grid-template-columns: 1fr; }
+      .risk-tabs{ flex-wrap: wrap; }
+    }
+
+    .risk-card{
+      background: rgba(255,255,255,0.06);
+      border-radius:20px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.25);
+      padding: 18px;
+      border: 1px solid rgba(103, 177, 130, 0.12);
+    }
+
+    .risk-inline{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .risk-inline .form-input{ flex:1; }
+
+    .risk-action{
+      padding: 12px 16px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-green) 0%, var(--dark-green) 100%);
+      color:#fff;
+      cursor:pointer;
+      font-size:14px;
+      font-family: 'Noto Sans SC', sans-serif;
+      white-space: nowrap;
+      transition: all .2s ease;
+    }
+    .risk-action:hover{ transform: translateY(-1px); box-shadow: 0 6px 16px var(--shadow); }
+
+    .risk-result-header{ margin-bottom: 12px; }
+    .risk-kv{
+      border: 2px solid var(--primary-green);
+      border-radius: 14px;
+      padding: 12px 14px;
+      background: var(--bg-cream);
+    }
+    .risk-k{ font-size: 13px; color:#567a63; margin-bottom: 4px; }
+    .risk-v{ font-size: 14px; color: var(--text-dark); }
+
+    .risk-score-card{
+      border-radius: 18px;
+      background: linear-gradient(135deg, #e9f7ee 0%, #dff4e6 100%);
+      padding: 18px;
+      text-align:center;
+      margin-bottom: 14px;
+      border: 2px solid rgba(111,179,136,0.35);
+    }
+    .risk-score-title{ font-size: 14px; color:#3f6c52; margin-bottom: 10px; }
+    .risk-score{ font-size: 46px; font-weight: 700; color: #2f7a52; line-height:1; }
+    .risk-level{ margin-top: 10px; font-size: 14px; color:#2f7a52; font-weight: 600; }
+
+    .risk-hint{
+      font-size: 13px;
+      color: #567a63;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+
+    /* ✅ 发病风险预测 3/4 居中 */
+    .risk-wrapper{
+      width: min(75vw, 1200px);
+      position: relative;
+      left: 50%;
+      transform: translateX(-50%);
+      margin: 40px 0 60px 0;
+      box-sizing: border-box;
+    }
+
+    .risk-wrapper .risk-grid { grid-template-columns: 1fr 1fr; }
+
+    @media (max-width: 1000px) {
+      .page-full-center,
+      .risk-wrapper { width: 90%; }
+      .risk-wrapper .risk-grid { grid-template-columns: 1fr; }
+    }
+
+    /* =========================
+       ✅ 页面8：病害百科（卡片 + 详情）
+       ========================= */
+    .ency-page { padding-top: 40px; }
+
+    .ency-toolbar{
+      max-width: 980px;
+      margin: 0 auto 16px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .ency-search{
+      flex:1;
+      padding: 12px 14px;
+      border: 1px solid rgba(103, 177, 130, 0.25);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.06);
+      color: var(--text-light);
+      font-size: 14px;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+    .ency-search:focus{ outline:none; border-color: var(--accent-green); }
+
+    .ency-grid{
+      max-width: 980px;
+      margin: 0 auto;
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 980px){
+      .ency-grid{ grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 720px){
+      .ency-grid{ grid-template-columns: repeat(2, 1fr); }
+      .ency-toolbar{ flex-wrap: wrap; }
+    }
+
+    .ency-card{
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.22);
+      overflow:hidden;
+      cursor:pointer;
+      transition: all .2s ease;
+      border: 1px solid rgba(103, 177, 130, 0.16);
+      display:flex;
+      flex-direction: column;
+      min-height: 210px;
+    }
+    .ency-card:hover{ transform: translateY(-3px); box-shadow: 0 8px 22px var(--shadow); border-color: rgba(111,179,136,0.7); }
+
+    .ency-thumb{
+      width:100%;
+      height: 130px;
+      object-fit: cover;
+      background: linear-gradient(135deg, rgba(168,213,186,0.25) 0%, rgba(90,143,111,0.1) 100%);
+      display:block;
+    }
+    .ency-card-body{
+      padding: 12px 12px 14px;
+      flex:1;
+      display:flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .ency-title{
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-light);
+      line-height: 1.25;
+      display:-webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow:hidden;
+      min-height: 38px;
+    }
+    .ency-meta{
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .ency-detail{
+      max-width: 980px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.06);
+      border-radius: 20px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.24);
+      padding: 18px 18px 8px;
+      border: 1px solid rgba(103, 177, 130, 0.14);
+    }
+    .ency-detail-title{
+      font-size: 22px;
+      color: var(--text-light);
+      font-weight: 600;
+      border-bottom: 3px solid rgba(103, 177, 130, 0.35);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+    .ency-detail-content{
+      font-size: 14px;
+      line-height: 1.85;
+      color: var(--text-muted);
+      padding-bottom: 16px;
+    }
+    .ency-detail-content img{
+      max-width: 100%;
+      border-radius: 14px;
+      display:block;
+      margin: 10px 0;
+    }
+    .ency-loading{
+      max-width: 980px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.22);
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.7;
+      border: 1px solid rgba(103, 177, 130, 0.12);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <!-- 页面1: 首页 -->
+    <div class="page active" id="page1">
+      <div class="home-page">
+        <h1 class="logo">智薯卫盾——马铃薯病害检测系统</h1>
+        <p class="subtitle">智能病害检测 · 守护丰收</p>
+
+        <button class="main-button" onclick="goToPage('page2')">病害图像识别</button>
+        <button class="main-button" onclick="goToPage('page7')">今日风险预测</button>
+        <button class="main-button" onclick="goToAiPage('ai1')">大语言模型问答</button>
+        <button class="main-button" onclick="goToAiPage('ai2')">智能体问答</button>
+        <button class="main-button" onclick="goToPage('page8')">病害百科</button>
+        <button class="main-button" onclick="goToPage('page6')">检测历史</button>
+      </div>
+    </div>
+
+    <!-- 页面2: 检测入口 -->
+    <div class="page" id="page2">
+      <div class="detection-page">
+        <h2 class="page-title">上传检测图片</h2>
+
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+          <div id="uploadPlaceholder">
+            <div class="upload-icon"></div>
+            <div class="upload-text">点击拍照或上传图片</div>
+          </div>
+          <img id="preview-image" alt="预览图片">
+        </div>
+        <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom: 16px;">
+          <button class="submit-button" type="button" onclick="document.getElementById('fileInput').click()" style="min-width: 160px; width:auto;">拍照 / 选择</button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handleFileSelect(event)">
+
+        <div class="form-group">
+          <label class="form-label">温度 (°C) - 选填</label>
+          <input type="number" class="form-input" id="temperature" placeholder="请输入温度">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">湿度 (%) - 选填</label>
+          <input type="number" class="form-input" id="humidity" placeholder="请输入湿度">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">生育周期 - 选填</label>
+          <select class="form-select" id="growthStage">
+            <option value="">请选择生育周期</option>
+            <option value="出苗">出苗</option>
+            <option value="团棵">团棵</option>
+            <option value="现蕾">现蕾</option>
+            <option value="开花">开花</option>
+            <option value="块茎膨大">块茎膨大</option>
+            <option value="成熟">成熟</option>
+          </select>
+        </div>
+
+        <button class="submit-button" id="detectButton" onclick="startDetection()" disabled>开始检测</button>
+        <button class="back-button" onclick="goToPage('page1')">返回首页</button>
+      </div>
+    </div>
+
+    <!-- 页面3: 初步结果(信息不完整) -->
+    <div class="page" id="page3">
+      <div style="padding-top: 40px;">
+        <h2 class="page-title">检测结果</h2>
+
+        <div class="result-container">
+          <h3 class="result-title">初步诊断</h3>
+          <div class="result-content" id="preliminaryResult"></div>
+        </div>
+
+        <div class="info-box">
+          <p class="info-text">请提供相应的温度、湿度、生育周期等信息,我们将为您提供更详细的诊断信息</p>
+          <button class="modify-button" onclick="returnToModify()">返回修改</button>
+        </div>
+
+        <button class="ai-button" onclick="goToPage('page4')">询问AI助手</button>
+        <button class="back-button" onclick="goToPage('page1')">返回首页</button>
+      </div>
+    </div>
+
+    <!-- 页面5: 完整结果(信息完整) -->
+    <div class="page" id="page5">
+      <div class="page-full-center">
+        <h2 class="page-title">详细检测报告</h2>
+
+        <div class="result-container">
+          <h3 class="result-title">病害诊断报告</h3>
+          <div class="result-content" id="detailedResult"></div>
+        </div>
+
+        <button class="ai-button" onclick="goToPage('page4')">询问AI助手</button>
+        <button class="back-button" onclick="goToPage('page1')">返回首页</button>
+      </div>
+    </div>
+
+    <!-- 页面6: 历史记录 -->
+    <div class="page" id="page6">
+      <div class="history-page">
+        <h2 class="page-title">历史检测记录</h2>
+        <div class="history-list" id="historyList"></div>
+        <button class="back-button" onclick="goToPage('page1')">返回首页</button>
+      </div>
+    </div>
+
+    <!-- 页面7: 风险检测 -->
+    <!-- 页面7: 风险检测（完整可替换版本） -->
+<div class="page" id="page7">
+  <div class="risk-wrapper">
+<h2 class="page-title">今日风险预测</h2>
+
+    <div class="risk-tabs">
+      <button class="risk-tab active" data-tab="tab-location"
+        onclick="switchRiskTab('tab-location', this)">
+        按地名查询
+      </button>
+
+      <button class="risk-tab" data-tab="tab-coord"
+        onclick="switchRiskTab('tab-coord', this)">
+        按坐标查询
+      </button>
+    </div>
+
+    <div class="risk-grid">
+
+      <!-- 左侧输入区域 -->
+      <div class="risk-card">
+
+        <!-- ========== 地名查询 + 定位检测 ========== -->
+        <div class="risk-panel" id="tab-location">
+
+          <div class="form-group">
+            <label class="form-label">地名（例如：北京 / 张家口）</label>
+            <input class="form-input" id="riskPlace"
+              placeholder="请输入地名">
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <button class="risk-action" style="flex:1;"
+              onclick="queryByPlace()">
+              地名一键预测
+            </button>
+
+            <button class="risk-action" style="flex:1;"
+              onclick="locateAndPredict()">
+               定位检测
+            </button>
+          </div>
+        </div>
+
+        <!-- ========== 坐标查询 ========== -->
+        <div class="risk-panel" id="tab-coord" style="display:none;">
+
+          <div class="form-group">
+            <label class="form-label">纬度 Latitude</label>
+            <input class="form-input" id="riskLat"
+              placeholder="例如：39.9042">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">经度 Longitude</label>
+            <input class="form-input" id="riskLng"
+              placeholder="例如：116.4074">
+          </div>
+
+          <button class="risk-action" style="width:100%;"
+            onclick="startRiskPredictByCoord()">
+            坐标一键预测
+          </button>
+        </div>
+
+
+      </div>
+
+      <!-- 右侧结果区域 -->
+      <div class="risk-card">
+
+        <div class="risk-result-header">
+          <div class="risk-kv">
+            <div class="risk-k">数据来源</div>
+            <div class="risk-v" id="riskLocationText">
+              等待查询
+            </div>
+          </div>
+        </div>
+
+        <div class="risk-score-card" id="riskScoreCard">
+          <div class="risk-score-title">发病风险预测</div>
+          <div class="risk-score" id="riskScore">--%</div>
+          <div class="risk-level" id="riskLevel">
+            等待预测
+          </div>
+        </div>
+
+        <div class="result-title"
+          style="font-size:18px;">风险等级说明</div>
+
+        <div class="result-content">
+          <p><strong>低风险</strong>（&lt;30%）</p>
+          <p><strong>中风险</strong>（30%~60%）</p>
+          <p><strong>较高风险</strong>（60%~80%）</p>
+          <p><strong>高风险</strong>（&gt;80%）</p>
+        </div>
+
+        <button class="back-button"
+          onclick="goToPage('page1')">
+          返回首页
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+    <!-- ✅ 页面8：病害百科 -->
+    <div class="page" id="page8">
+      <div class="ency-page">
+        <h2 class="page-title">病害百科</h2>
+
+        <div class="ency-toolbar">
+          <input class="ency-search" id="encySearch" placeholder="搜索病害名称/关键词（例如：晚疫病 / 轮纹 / 块茎）" oninput="filterEncyCards()">
+          <button class="risk-action" onclick="reloadEncyclopedia()">重新加载</button>
+        </div>
+
+        <div id="encyBody">
+          <div class="ency-loading">
+            正在加载病害百科内容…<br>
+            <span style="font-size:12px;color:#7a9a87;">
+              提示：请把压缩包里的 DOCX 解压后，放到与你这个 HTML 同目录下，并命名为 <b>potato_disease_library.docx</b>。
+            </span>
+          </div>
+        </div>
+
+        <button class="back-button" onclick="goToPage('page1')">返回首页</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 页面4: AI助手 (独立全屏) -->
+  <div class="page" id="page4">
+    <div class="ai-page">
+      <!-- 左侧边栏 (1/6) -->
+      <div class="ai-sidebar">
+        <div class="model-dropdown-container">
+          <select class="model-dropdown" id="modelDropdown" onchange="switchModelFromDropdown()">
+            <option value="ai1">AI模型 1（大模型）</option>
+            <option value="ai2">AI模型 2（扣子智能体）</option>
+          </select>
+        </div>
+
+        <button class="new-chat-button" onclick="createNewChat()">+ 新聊天</button>
+
+        <div class="chat-history-section">
+          <div class="chat-history-title">你的聊天</div>
+          <div class="chat-history-list" id="chatHistoryList"></div>
+        </div>
+
+        <button class="sidebar-back-button" onclick="goBack()">返回</button>
+      </div>
+
+      <!-- 右侧聊天区域 (5/6) -->
+      <div class="ai-chat-area">
+        <div class="chat-messages" id="chatContainer">
+          <div class="message ai">
+            <div class="md">您好，欢迎来到智能问答区。您可以输入问题，也可以使用语音输入。</div>
+          </div>
+        </div>
+
+        <div class="chat-input-wrapper">
+          <div class="input-area">
+            <input type="text" class="chat-input" id="chatInput" placeholder="请输入您的问题..." onkeypress="handleChatKeypress(event)">
+            <button class="voice-button" id="voiceButton" onclick="toggleVoiceRecognition()">语音</button>
+            <button class="send-button" onclick="sendMessage()">发送</button>
+          </div>
+        </div>
+        <div style="color: var(--text-muted); font-size: 12px; text-align: center; margin-top: 8px;">识别结果可直接修改后发送，浏览器需支持语音输入。</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================
+    // ✅ 统一 Base URL
+    // =========================
+    const BASE_URL = "http://127.0.0.1:8000";
+
+    // =========================
+    // ✅ 病害百科：DOCX 静态文件地址（请把解压后的 docx 放到同目录）
+    // =========================
+    const DISEASE_DOCX_URL = "./potato_disease_library.docx";
+
+    // 全局变量
+    let currentImage = null;
+    let currentModel = 'ai1';
+    let previousPage = 'page1';
+    let detectionHistory = JSON.parse(localStorage.getItem('detectionHistory') || '[]');
+    let chatSessions = JSON.parse(localStorage.getItem('chatSessions') || '[]');
+    let uploadHistoryRecords = [];
+    let currentChatId = null;
+    let voiceRecognition = null;
+    let voiceActive = false;
+
+    // 病害百科数据缓存
+    let encyclopediaLoaded = false;
+    let encyclopediaItems = []; // { id, title, thumb, html }
+
+    // ✅ Markdown 渲染 + 净化（防 XSS）
+    function renderMarkdownToHtml(mdText) {
+      const text = (mdText ?? "").toString();
+
+      if (window.marked) {
+        marked.setOptions({
+          breaks: true,
+          gfm: true,
+          headerIds: false,
+          mangle: false
+        });
+
+        let html = marked.parse(text);
+
+        if (window.DOMPurify) html = DOMPurify.sanitize(html);
+        else html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "");
+
+        return `<div class="md">${html}</div>`;
+      }
+
+      const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return `<div class="md">${escaped}</div>`;
+    }
+
+    // 语音输入初始化
+    function initVoiceRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition;
+      const voiceButton = document.getElementById('voiceButton');
+      if (!SpeechRecognition) {
+        if (voiceButton) voiceButton.disabled = true;
+        return;
+      }
+
+      voiceRecognition = new SpeechRecognition();
+      voiceRecognition.lang = 'zh-CN';
+      voiceRecognition.continuous = false;
+      voiceRecognition.interimResults = false;
+
+      voiceRecognition.onstart = () => {
+        voiceActive = true;
+        updateVoiceButton();
+      };
+
+      voiceRecognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('')
+          .trim();
+        const input = document.getElementById('chatInput');
+        if (input) input.value = transcript;
+      };
+
+      voiceRecognition.onend = () => {
+        voiceActive = false;
+        updateVoiceButton();
+      };
+
+      voiceRecognition.onerror = (event) => {
+        console.error('语音识别失败：', event.error);
+        voiceActive = false;
+        updateVoiceButton();
+        if (event.error === 'not-allowed') {
+          alert('请允许浏览器使用麦克风，或在浏览器设置中启用语音输入权限。');
+        }
+      };
+    }
+
+    function updateVoiceButton() {
+      const voiceButton = document.getElementById('voiceButton');
+      if (!voiceButton) return;
+      if (voiceActive) {
+        voiceButton.classList.add('active');
+        voiceButton.textContent = '停止语音';
+      } else {
+        voiceButton.classList.remove('active');
+        voiceButton.textContent = '语音';
+      }
+    }
+
+    function toggleVoiceRecognition() {
+      if (!voiceRecognition) {
+        alert('当前浏览器暂不支持语音输入，请使用 Chrome 或 Edge。');
+        return;
+      }
+      if (voiceActive) {
+        voiceRecognition.stop();
+      } else {
+        voiceRecognition.start();
+      }
+    }
+
+    function goToPage(pageId) {
+      const currentActivePage = document.querySelector('.page.active')?.id;
+      document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+
+      const targetPage = document.getElementById(pageId);
+      if (targetPage) {
+        if (currentActivePage && currentActivePage !== 'page4') previousPage = currentActivePage;
+
+        targetPage.classList.add('active');
+
+        if (pageId === 'page6') displayHistory();
+
+        if (pageId === 'page4') {
+          refreshAiHistory();
+          if (!currentChatId) {
+            if (chatSessions.length > 0) loadChat(chatSessions[0].id);
+            else createNewChat();
+          }
+        }
+
+        // 进入风险页时，默认切到“手动输入”
+        if (pageId === 'page7') {
+          const btn = document.querySelector('#page7 .risk-tab[data-tab="tab-location"]');
+          if (btn) switchRiskTab('tab-location', btn);
+          setRiskLocationText("等待查询");
+          document.getElementById('riskLevel').textContent = "等待预测";
+          document.getElementById('riskScore').textContent = "--%";
+        }
+
+        // ✅ 进入病害百科页：加载并渲染
+        if (pageId === 'page8') {
+          initEncyclopedia();
+        }
+      }
+    }
+
+    function goBack() {
+      if (previousPage && previousPage !== 'page4') goToPage(previousPage);
+      else goToPage('page1');
+    }
+
+    function goToAiPage(model) {
+      currentModel = model || 'ai1';
+      const dropdown = document.getElementById('modelDropdown');
+      if (dropdown) dropdown.value = currentModel;
+      goToPage('page4');
+      if (!currentChatId) createNewChat();
+      updateChatHistoryList();
+    }
+
+    async function refreshAiHistory() {
+      try {
+        const response = await fetch(`${BASE_URL}/api/chat/sessions?limit=20`);
+        if (!response.ok) throw new Error(`状态 ${response.status}`);
+        const data = await response.json();
+        if (data.success && Array.isArray(data.items)) {
+          chatSessions = data.items.map(item => ({
+            id: item.id,
+            title: item.metadata?.title || `${new Date(item.started_at).toLocaleString('zh-CN')} 对话`,
+            messages: [],
+            model: item.metadata?.model || currentModel,
+            createdAt: item.started_at
+          }));
+          localStorage.setItem('chatSessions', JSON.stringify(chatSessions));
+          updateChatHistoryList();
+        }
+      } catch (err) {
+        console.warn('无法从后端加载会话历史，使用本地缓存', err);
+        updateChatHistoryList();
+      }
+    }
+
+    // 处理文件选择
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          currentImage = e.target.result;
+          const previewImg = document.getElementById('preview-image');
+          const uploadArea = document.getElementById('uploadArea');
+          const placeholder = document.getElementById('uploadPlaceholder');
+
+          previewImg.src = currentImage;
+          previewImg.classList.add('show');
+          placeholder.style.display = 'none';
+          uploadArea.classList.add('has-image');
+
+          document.getElementById('detectButton').disabled = false;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // 开始检测
+    async function startDetection() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) { alert('请先上传图片!'); return; }
+
+      const temperature = document.getElementById('temperature').value;
+      const humidity = document.getElementById('humidity').value;
+      const growthStage = document.getElementById('growthStage').value;
+      const isComplete = temperature && humidity && growthStage;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch(`${BASE_URL}/api/predict_with_explanation`, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          console.error("接口错误:", response.status, text);
+          alert("识别接口返回错误，请查看控制台/后端日志");
+          return;
+        }
+
+        const data = await response.json();
+        handleDetectionResult(data, isComplete, temperature, humidity, growthStage);
+
+      } catch (error) {
+        console.error("连接后端失败:", error);
+        alert("无法连接后端，请确认后端正在运行！");
+      }
+    }
+
+    function handleDetectionResult(data, isComplete, temperature, humidity, growthStage) {
+      let diseaseName = "未知病害";
+      if (data.results && data.results.length > 0) {
+        diseaseName = data.results[0].class || data.results[0].name || diseaseName;
+      }
+
+      const monthlyTip = data.monthly_tip || "（暂无提示）";
+      const explanation = data.explanation || "（大模型未启用或无解读内容）";
+
+      if (isComplete) {
+        const detailedResult = `
+          <p><strong>检测病害:</strong> ${diseaseName}</p>
+
+          <p style="margin-top: 10px;"><strong>当月易发病提示:</strong></p>
+          <p>${monthlyTip}</p>
+
+          <p style="margin-top: 10px;"><strong>环境条件:</strong></p>
+          <p>• 温度: ${temperature}°C</p>
+          <p>• 湿度: ${humidity}%</p>
+          <p>• 生育周期: ${growthStage}</p>
+
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--primary-green);">
+
+          <p><strong>AI解读:</strong></p>
+          <p>${explanation}</p>
+
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--primary-green);">
+
+          <p><strong>基础防治建议:</strong></p>
+          <p>1. 及时清除病叶/病株，带出田外处理</p>
+          <p>2. 控制湿度、避免叶面长时间积水，增强通风</p>
+          <p>3. 必要时选择合适的杀菌剂轮换用药（遵循当地植保建议）</p>
+          <p>4. 合理密植、加强田间管理与轮作</p>
+          <p><strong>注意:</strong> 当前环境 ${temperature}°C / ${humidity}%</p>
+        `;
+
+        const detailedEl = document.getElementById('detailedResult');
+        detailedEl.innerHTML = detailedResult;
+
+        if (data.image_result) {
+          const img = document.createElement("img");
+          img.src = "data:image/jpeg;base64," + data.image_result;
+          img.style.width = "300px";
+          img.style.maxWidth = "100%";
+          img.style.borderRadius = "12px";
+          img.style.marginTop = "15px";
+          detailedEl.appendChild(img);
+        }
+
+        saveToHistory(diseaseName, true);
+        goToPage('page5');
+
+      } else {
+        const preliminaryResult = `
+          <p><strong>检测病害:</strong> ${diseaseName}</p>
+
+          <p style="margin-top: 10px;"><strong>当月易发病提示:</strong></p>
+          <p>${monthlyTip}</p>
+
+          <p style="margin-top: 10px;"><strong>初步判断:</strong></p>
+          <p>AI识别到可能存在<strong>${diseaseName}</strong>。</p>
+
+          <p style="margin-top: 15px; color: var(--accent-green);">
+            建议填写温度、湿度、生育周期以获得更精准分析与更完整解读
+          </p>
+        `;
+
+        document.getElementById('preliminaryResult').innerHTML = preliminaryResult;
+        saveToHistory(diseaseName, false);
+        goToPage('page3');
+      }
+    }
+
+    function returnToModify() { goToPage('page2'); }
+
+    function switchModelFromDropdown() {
+      const dropdown = document.getElementById('modelDropdown');
+      currentModel = dropdown.value;
+
+      const chatContainer = document.getElementById('chatContainer');
+      chatContainer.innerHTML = `
+        <div class="message ai">
+          <div class="md">您好!我是AI助手 ${currentModel === 'ai1' ? 'DeepSeek模型' : '智能体薯类专业家'},有什么可以帮您的吗?</div>
+        </div>
+      `;
+    }
+
+    function createNewChat() {
+      const now = new Date();
+      const dateStr = now.toLocaleString('zh-CN', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      const newChat = {
+        id: Date.now(),
+        title: `${dateStr} 对话`,
+        messages: [],
+        model: currentModel,
+        createdAt: now.toISOString()
+      };
+
+      chatSessions.unshift(newChat);
+      currentChatId = newChat.id;
+
+      if (chatSessions.length > 50) chatSessions = chatSessions.slice(0, 50);
+      localStorage.setItem('chatSessions', JSON.stringify(chatSessions));
+
+      const chatContainer = document.getElementById('chatContainer');
+      chatContainer.innerHTML = `
+        <div class="message ai">
+          <div class="md">您好!我是AI助手,有什么可以帮您的吗?</div>
+        </div>
+      `;
+
+      updateChatHistoryList();
+    }
+
+    function updateChatHistoryList() {
+      const historyList = document.getElementById('chatHistoryList');
+
+      if (chatSessions.length === 0) {
+        historyList.innerHTML = '<div style="color: #999; font-size: 12px; text-align: center; padding: 20px 0;">暂无聊天记录</div>';
+        return;
+      }
+
+      historyList.innerHTML = chatSessions.map(chat => `
+        <div class="chat-history-item ${chat.id === currentChatId ? 'active' : ''}"
+             onclick="loadChat(${chat.id})"
+             title="${chat.title}">
+          ${chat.title}
+        </div>
+      `).join('');
+    }
+
+    async function loadChat(chatId) {
+      const chat = chatSessions.find(c => c.id === chatId);
+      if (!chat) return;
+
+      currentChatId = chatId;
+      currentModel = chat.model || currentModel;
+
+      const dropdown = document.getElementById('modelDropdown');
+      if (dropdown) dropdown.value = currentModel;
+
+      const chatContainer = document.getElementById('chatContainer');
+      chatContainer.innerHTML = "";
+
+      if ((!chat.messages || chat.messages.length === 0) && chat.id) {
+        try {
+          const response = await fetch(`${BASE_URL}/api/chat/${chat.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.messages)) {
+              chat.messages = data.messages.map(m => ({
+                type: m.role === 'assistant' ? 'ai' : 'user',
+                text: m.content
+              }));
+            }
+          }
+        } catch (err) {
+          console.warn('加载会话消息失败', err);
+        }
+      }
+
+      if (!chat.messages || chat.messages.length === 0) {
+        const init = document.createElement('div');
+        init.className = 'message ai';
+        init.innerHTML = `<div class="md">您好，欢迎来到智能问答区。您可以输入问题，也可以使用语音输入。</div>`;
+        chatContainer.appendChild(init);
+      } else {
+        chat.messages.forEach(msg => addMessage(msg.text, msg.type));
+      }
+
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      updateChatHistoryList();
+    }
+
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+
+      if (!currentChatId) createNewChat();
+
+      addMessage(message, 'user');
+      input.value = '';
+
+      const currentChat = chatSessions.find(c => c.id === currentChatId);
+
+      if (currentChat) {
+        currentChat.messages.push({ type: 'user', text: message });
+        currentChat.model = currentModel;
+        localStorage.setItem('chatSessions', JSON.stringify(chatSessions));
+        updateChatHistoryList();
+      }
+
+      const apiUrl = (currentModel === "ai1")
+        ? `${BASE_URL}/api/ask`
+        : `${BASE_URL}/api/coze/ask`;
+
+      const historyPayload = (currentChat?.messages || [])
+        .slice(0, -1)
+        .map(m => ({
+          role: m.type === 'user' ? 'user' : 'assistant',
+          content: m.text
+        }));
+
+      const thinkingId = `thinking-${Date.now()}`;
+      addMessage("正在思考中…", 'ai', thinkingId);
+
+      fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: message, history: historyPayload })
+      })
+      .then(async (res) => {
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`HTTP ${res.status}: ${txt}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        const response =
+          data.answer ||
+          data.response ||
+          data.result ||
+          data.message ||
+          "（接口返回但未包含 answer 字段）";
+
+        replaceMessage(thinkingId, response, 'ai');
+
+        if (currentChat) {
+          currentChat.messages.push({ type: 'ai', text: response });
+          localStorage.setItem('chatSessions', JSON.stringify(chatSessions));
+        }
+      })
+      .catch(err => {
+        console.error("AI接口失败:", err);
+        replaceMessage(thinkingId, `AI接口失败：${err.message}`, 'ai');
+      });
+    }
+
+    function addMessage(text, type, id = null) {
+      const chatContainer = document.getElementById('chatContainer');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+      if (id) messageDiv.dataset.msgid = id;
+
+      if (type === 'ai') messageDiv.innerHTML = renderMarkdownToHtml(text);
+      else messageDiv.textContent = text;
+
+      chatContainer.appendChild(messageDiv);
+
+      if (type === 'ai' && window.hljs) {
+        messageDiv.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+      }
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function replaceMessage(id, newText, type) {
+      const chatContainer = document.getElementById('chatContainer');
+      const target = chatContainer.querySelector(`[data-msgid="${id}"]`);
+
+      if (target) {
+        target.className = `message ${type}`;
+        if (type === 'ai') {
+          target.innerHTML = renderMarkdownToHtml(newText);
+          if (window.hljs) target.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+        } else {
+          target.textContent = newText;
+        }
+      } else {
+        addMessage(newText, type);
+      }
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function handleChatKeypress(event) {
+      if (event.key === 'Enter') sendMessage();
+    }
+
+    // =========================
+    // ✅ 历史记录
+    // =========================
+    function saveToHistory(disease, isComplete) {
+      const record = {
+        image: currentImage,
+        disease: disease,
+        isComplete: isComplete,
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleString('zh-CN')
+      };
+
+      detectionHistory.unshift(record);
+      if (detectionHistory.length > 20) detectionHistory = detectionHistory.slice(0, 20);
+
+      localStorage.setItem('detectionHistory', JSON.stringify(detectionHistory));
+    }
+
+    async function displayHistory() {
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = '<div class="empty-state">正在加载历史记录...</div>';
+      uploadHistoryRecords = [];
+
+      try {
+        const response = await fetch(`${BASE_URL}/api/uploads?limit=20`);
+        if (!response.ok) throw new Error(`状态 ${response.status}`);
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+          uploadHistoryRecords = data.items;
+          historyList.innerHTML = uploadHistoryRecords.map((record) => {
+            const disease = record.results && record.results.length > 0
+              ? record.results[0].class || record.results[0].name || '未知病害'
+              : '未知病害';
+            const dateText = new Date(record.created_at).toLocaleString('zh-CN');
+            return `
+              <div class="history-item" onclick="viewHistoryDetail(${record.id})">
+                <img src="${BASE_URL}/api/uploads/${record.id}/image?which=original" alt="历史图片" class="history-image">
+                <div class="history-info">
+                  <div class="history-date">${dateText}</div>
+                  <div class="history-result">检测病害: ${disease}</div>
+                  <div class="history-result" style="font-size: 12px; color: #999; margin-top: 5px;">
+                    ${record.explanation ? '含AI解读' : '仅检测结果'}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+          return;
+        }
+      } catch (err) {
+        console.warn('无法从后端加载历史记录', err);
+      }
+
+      if (detectionHistory.length === 0) {
+        historyList.innerHTML = '<div class="empty-state">还没有历史记录哦~</div>';
+        return;
+      }
+
+      historyList.innerHTML = detectionHistory.map((record, index) => `
+        <div class="history-item" onclick="viewHistoryDetailFallback(${index})">
+          <img src="${record.image}" alt="历史图片" class="history-image">
+          <div class="history-info">
+            <div class="history-date">${record.date}</div>
+            <div class="history-result">检测病害: ${record.disease}</div>
+            <div class="history-result" style="font-size: 12px; color: #999; margin-top: 5px;">
+              ${record.isComplete ? '完整检测' : '初步检测'}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function viewHistoryDetail(recordId) {
+      const record = uploadHistoryRecords.find(item => item.id === recordId);
+      if (!record) {
+        viewHistoryDetailFallback(recordId);
+        return;
+      }
+
+      const disease = record.results && record.results.length > 0
+        ? record.results[0].class || record.results[0].name || '未知病害'
+        : '未知病害';
+      const explanation = record.explanation || '暂无额外解读';
+      const time = new Date(record.created_at).toLocaleString('zh-CN');
+
+      alert(`检测时间: ${time}\n检测病害: ${disease}\n说明: ${explanation}`);
+    }
+
+    function viewHistoryDetailFallback(index) {
+      const record = detectionHistory[index];
+      if (!record) return;
+      alert(`检测时间: ${record.date}\n检测病害: ${record.disease}\n检测类型: ${record.isComplete ? '完整检测' : '初步检测'}`);
+    }
+
+    // =========================
+    // ✅ 页面7：风险检测
+    // =========================
+    function switchRiskTab(tabId, btn){
+      document.querySelectorAll('#page7 .risk-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      document.querySelectorAll('#page7 .risk-panel').forEach(p => p.style.display = 'none');
+      const panel = document.getElementById(tabId);
+      if(panel) panel.style.display = 'block';
+    }
+
+    function setRiskLocationText(text){
+      const el = document.getElementById('riskLocationText');
+      if(el) el.textContent = text || '暂无';
+    }
+
+    function setRiskResult(percent){
+      const p = Math.max(0, Math.min(100, Number(percent)));
+      const scoreEl = document.getElementById('riskScore');
+      const levelEl = document.getElementById('riskLevel');
+      const cardEl = document.getElementById('riskScoreCard');
+
+      if(scoreEl) scoreEl.textContent = `${p.toFixed(1)}%`;
+
+      let level = "等待预测";
+      if(p < 30) level = "低风险";
+      else if(p < 60) level = "中风险";
+      else if(p < 80) level = "较高风险";
+      else level = "高风险";
+
+      if(levelEl) levelEl.textContent = level;
+
+      if(cardEl){
+        if(p < 30){
+          cardEl.style.background = "linear-gradient(135deg, #e9f7ee 0%, #dff4e6 100%)";
+        }else if(p < 60){
+          cardEl.style.background = "linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%)";
+        }else{
+          cardEl.style.background = "linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)";
+        }
+      }
+    }
+
+    function parseNumberList(text) {
+      const raw = (text || "")
+        .replace(/，/g, ",")
+        .replace(/\s+/g, ",")
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      const nums = raw.map(x => Number(x));
+      if (nums.some(n => !isFinite(n))) return null;
+      return nums;
+    }
+
+    function fillTimeSeriesExample(){
+      document.getElementById('tsTemp7').value = "18,19,20,21,20,19,18";
+      document.getElementById('tsHum7').value  = "55,58,60,62,61,59,57";
+      document.getElementById('tsTemp24').value = "18,18,17,17,16,16,16,17,18,19,20,21,22,22,21,20,19,18,18,17,17,17,18,18";
+      document.getElementById('tsInput6').value = "19.0,21.0,18.0,0,0,0";
+      setRiskLocationText("天气时序数据（示例填充）");
+      setRiskResult(0);
+      document.getElementById('riskLevel').textContent = "等待预测";
+    }
+
+    function computeFeaturesFromTimeSeries(t7, h7){
+      const avg_temp_7d = t7.reduce((s, v) => s + v, 0) / 7;
+      const max_temp_7d = Math.max(...t7);
+      const min_temp_7d = Math.min(...t7);
+      const rh_over_90_hours = h7.reduce((sum, v) => sum + (v >= 90 ? 24 : 0), 0);
+
+      let currentWet = 0;
+      let longestWet = 0;
+      for (let v of h7){
+        if (v >= 90) {
+          currentWet += 24;
+        } else {
+          longestWet = Math.max(longestWet, currentWet);
+          currentWet = 0;
+        }
+      }
+      longestWet = Math.max(longestWet, currentWet);
+
+      const total_rainfall_7d = 0;
+      const longest_wet_period_hours = longestWet;
+
+      return [
+        Number(avg_temp_7d.toFixed(3)),
+        Number(max_temp_7d.toFixed(3)),
+        Number(min_temp_7d.toFixed(3)),
+        rh_over_90_hours,
+        total_rainfall_7d,
+        longest_wet_period_hours
+      ];
+    }
+
+    async function startRiskPredictByTimeSeries(){
+      const input6 = parseNumberList(document.getElementById('tsInput6').value);
+
+      let dataArray;
+      if (input6 && input6.length > 0) {
+        if (input6.length !== 6) { alert("6维特征必须是 6 个有效数字"); return; }
+        dataArray = input6;
+      } else {
+        const t7 = parseNumberList(document.getElementById('tsTemp7').value);
+        const h7 = parseNumberList(document.getElementById('tsHum7').value);
+        const t24 = parseNumberList(document.getElementById('tsTemp24').value);
+
+        if (!t7 || t7.length !== 7) { alert("7天温度必须是 7 个有效数字"); return; }
+        if (!h7 || h7.length !== 7) { alert("7天湿度必须是 7 个有效数字"); return; }
+        if (!t24 || t24.length !== 24) { alert("24小时温度必须是 24 个有效数字"); return; }
+
+        dataArray = computeFeaturesFromTimeSeries(t7, h7);
+      }
+
+      if (!dataArray || dataArray.length !== 6) { alert("内部拼接错误：data 长度不是 6"); return; }
+
+      setRiskLocationText("天气时序数据（手动输入）");
+      document.getElementById('riskLevel').textContent = "预测中…";
+      setRiskResult(0);
+
+      try{
+        const res = await fetch(`${BASE_URL}/api/time_series_predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: dataArray })
+        });
+
+        if(!res.ok){
+          const t = await res.text();
+          throw new Error(`HTTP ${res.status}: ${t}`);
+        }
+
+        const result = await res.json();
+        if (result && result.success === false) {
+          throw new Error(result.message || "后端返回 success=false");
+        }
+
+        let pred = result.prediction;
+        if (typeof pred === "string") pred = Number(pred);
+        if (!isFinite(pred)) throw new Error("后端未返回有效 prediction");
+
+        let risk = pred;
+        if (risk <= 1) risk = risk * 100;
+
+        setRiskResult(risk);
+      }catch(e){
+        console.error("时序预测失败:", e);
+        document.getElementById('riskLevel').textContent = "预测失败";
+        alert("时序预测失败：请确认后端已运行，且 /api/time_series_predict 可用。\n" + e.message);
+      }
+    }
+
+    function fillBeijingExample(){
+      const el = document.getElementById('riskPlace');
+      if (el) el.value = "北京";
+    }
+
+    function fillCoordExample(){
+      const latEl = document.getElementById('riskLat');
+      const lngEl = document.getElementById('riskLng');
+      if (latEl) latEl.value = "39.9042";
+      if (lngEl) lngEl.value = "116.4074";
+      setRiskLocationText("示例坐标 · 39.9042, 116.4074");
+    }
+
+    async function backendGeocode(placeName){
+      const url = `${BASE_URL}/api/geocode?name=${encodeURIComponent(placeName)}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`地名转经纬度失败 HTTP ${res.status}: ${t}`);
+      }
+      const data = await res.json();
+      if (data && data.success === false) {
+        throw new Error(data.message || "后端 geocode 返回 success=false");
+      }
+      const r = data.result || data.data || data;
+      const lat = r.latitude ?? r.lat ?? r.Latitude;
+      const lng = r.longitude ?? r.lng ?? r.Longitude;
+      if (!isFinite(Number(lat)) || !isFinite(Number(lng))) {
+        throw new Error("后端 geocode 未返回有效 latitude/longitude");
+      }
+      return { lat: Number(lat), lng: Number(lng), raw: r };
+    }
+
+    async function backendPredictByLocation(lat, lng){
+      const res = await fetch(`${BASE_URL}/api/time_series_predict_by_location`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude: lat, longitude: lng })
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`按经纬度预测失败 HTTP ${res.status}: ${t}`);
+      }
+      const data = await res.json();
+      if (data && data.success === false) {
+        throw new Error(data.message || "后端返回 success=false");
+      }
+      let pred = data.prediction;
+      if (typeof pred === "string") pred = Number(pred);
+      if (!isFinite(pred)) throw new Error("后端未返回有效 prediction");
+
+      let risk = pred;
+      if (risk <= 1) risk = risk * 100;
+
+      return { risk, raw: data };
+    }
+
+    async function queryByPlace(){
+      const place = document.getElementById('riskPlace')?.value?.trim();
+      if (!place) { alert("请输入地名"); return; }
+
+      setRiskResult(0);
+      setRiskLocationText(`地名：${place}`);
+      document.getElementById('riskLevel').textContent = "地名解析中…";
+
+      try{
+        const geo = await backendGeocode(place);
+
+        const latEl = document.getElementById('riskLat');
+        const lngEl = document.getElementById('riskLng');
+        if (latEl) latEl.value = geo.lat;
+        if (lngEl) lngEl.value = geo.lng;
+
+        const displayName =
+          geo.raw?.name
+          ? `${geo.raw.name}${geo.raw.country ? "·" + geo.raw.country : ""}`
+          : place;
+
+        setRiskLocationText(`${displayName} · ${geo.lat}, ${geo.lng}`);
+        document.getElementById('riskLevel').textContent = "获取天气并预测中…";
+
+        const { risk } = await backendPredictByLocation(geo.lat, geo.lng);
+        setRiskResult(risk);
+      }catch(e){
+        console.error(e);
+        document.getElementById('riskLevel').textContent = "预测失败";
+        alert("按地名预测失败：\n" + e.message);
+      }
+    }
+
+    async function startRiskPredictByCoord(){
+      const lat = Number(document.getElementById('riskLat')?.value);
+      const lng = Number(document.getElementById('riskLng')?.value);
+
+      if (!isFinite(lat) || !isFinite(lng)) {
+        alert("请输入有效的经纬度");
+        return;
+      }
+
+      setRiskResult(0);
+      setRiskLocationText(`坐标 · ${lat}, ${lng}`);
+      document.getElementById('riskLevel').textContent = "获取天气并预测中…";
+
+      try{
+        const { risk } = await backendPredictByLocation(lat, lng);
+        setRiskResult(risk);
+      }catch(e){
+        console.error(e);
+        document.getElementById('riskLevel').textContent = "预测失败";
+        alert("按坐标预测失败：\n" + e.message);
+      }
+    }
+    async function locateAndPredict() {
+
+  if (!navigator.geolocation) {
+    alert("当前浏览器不支持定位功能");
+    return;
+  }
+
+  document.getElementById('riskLevel').textContent = "定位中…";
+  setRiskLocationText("正在获取当前位置…");
+  setRiskResult(0);
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      setRiskLocationText(
+        `当前位置 · ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+      );
+
+      document.getElementById('riskLevel').textContent =
+        "获取天气并预测中…";
+
+      try {
+        const res = await fetch(
+          `${BASE_URL}/api/time_series_predict_by_location`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: lat,
+              longitude: lng
+            })
+          }
+        );
+
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.message || "预测失败");
+        }
+
+        let risk = data.prediction;
+        if (risk <= 1) risk *= 100;
+
+        setRiskResult(risk);
+
+      } catch (e) {
+        document.getElementById('riskLevel').textContent =
+          "预测失败";
+        alert("定位预测失败：\n" + e.message);
+      }
+    },
+
+    () => {
+      document.getElementById('riskLevel').textContent =
+        "定位失败";
+      alert("定位失败，请允许浏览器获取位置");
+    },
+
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+    // =========================
+// ✅ 页面8：病害百科（核心逻辑）
+//    - 加载 docx（压缩包内容）
+//    - 转 HTML + 抽取每个“病害条目”
+//    - 渲染卡片，点击进入详情
+// =========================
+
+function reloadEncyclopedia(){
+  encyclopediaLoaded = false;
+  encyclopediaItems = [];
+  const body = document.getElementById('encyBody');
+  if (body) body.innerHTML = `<div class="ency-loading">正在重新加载…</div>`;
+  initEncyclopedia();
+}
+
+// ✅ 修复 btoa 中文报错：支持 Unicode/中文
+function b64EncodeUnicode(str){
+  // TextEncoder 是现代浏览器标准 API（推荐）
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+
+function escapeHtml(s){
+  return String(s || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function normalizeText(s){
+  return (s || "").toString().replace(/\s+/g, " ").trim();
+}
+
+async function initEncyclopedia(){
+  if (encyclopediaLoaded && encyclopediaItems.length > 0) {
+    renderEncyclopediaList(encyclopediaItems);
+    return;
+  }
+  const body = document.getElementById('encyBody');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div class="ency-loading">
+      正在加载病害百科内容…<br>
+      <span style="font-size:12px;color:#7a9a87;">
+        
+      </span>
+    </div>
+  `;
+
+  try{
+    const arrayBuffer = await fetchAsArrayBuffer(DISEASE_DOCX_URL);
+
+    // mammoth：把 docx 转成 HTML，并把图片转成 base64 内联
+    const result = await mammoth.convertToHtml(
+      { arrayBuffer },
+      {
+        convertImage: mammoth.images.inline(function(element) {
+          return element.read("base64").then(function(imageBuffer) {
+            return { src: "data:" + element.contentType + ";base64," + imageBuffer };
+          });
+        })
+      }
+    );
+
+    let html = result?.value || "";
+    if (window.DOMPurify) html = DOMPurify.sanitize(html);
+
+    // 抽取病害条目（✅已支持 1.编号标题 + <h1>/<h2>/<h3> 标题）
+    const items = extractDiseaseItemsFromDocHtml(html);
+
+    if (!items || items.length === 0) {
+      body.innerHTML = `
+        <div class="ency-loading">
+          已加载 DOCX，但未能自动解析出“病害条目”。<br>
+          <span style="font-size:12px;color:#7a9a87;">
+            解决办法（任选其一）：
+            <br>1）把每个病害条目标题写成：<b>1. 晚疫病</b>、<b>2. 早疫病</b>…
+            <br>2）或把病害条目标题设置为 Word 标题样式（Heading 1/2/3），并确保标题中包含“病/疫/腐/斑/霉”等关键词。
+          </span>
+        </div>
+      `;
+      return;
+    }
+
+    encyclopediaItems = items;
+    encyclopediaLoaded = true;
+    renderEncyclopediaList(items);
+
+  }catch(e){
+    console.error("病害百科加载失败:", e);
+    body.innerHTML = `
+      <div class="ency-loading">
+        病害百科加载失败：${escapeHtml(e.message)}<br>
+        <span style="font-size:12px;color:#7a9a87;">
+          解决办法：把压缩包里的 DOCX 解压后重命名为 <b>potato_disease_library.docx</b>，
+          并放到与你的 HTML 同目录（或后端静态目录）下。
+        </span>
+      </div>
+    `;
+  }
+}
+
+async function fetchAsArrayBuffer(url){
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    const t = await res.text().catch(()=> "");
+    throw new Error(`无法读取 DOCX：HTTP ${res.status} ${t || ""}`);
+  }
+  return await res.arrayBuffer();
+}
+
+/**
+ * ✅ 抽取条目：
+ *  - 兼容 1. 晚疫病 / 2. 早疫病 ...
+ *  - 兼容 mammoth 输出的 <h1>/<h2>/<h3>（Word 标题样式）
+ */
+function extractDiseaseItemsFromDocHtml(html){
+  const wrap = document.createElement("div");
+  wrap.innerHTML = html;
+
+  // mammoth 输出通常是多个 <p> / <h1> / <h2> ... 作为 wrap 的 children
+  const nodes = Array.from(wrap.children);
+  if (nodes.length === 0) return [];
+
+  // ✅ 只截取“完整版”之后，避免前面模板内容干扰（找不到也没关系：从头开始）
+  let startIdx = 0;
+  for (let i=0;i<nodes.length;i++){
+    const t = normalizeText(nodes[i].textContent);
+    if (t.includes("马铃薯病害知识库") && t.includes("完整版")) {
+      startIdx = i;
+      break;
+    }
+  }
+  const sliced = nodes.slice(startIdx);
+
+  const stopWords = [
+    "基础信息","症状识别","发病规律","综合防治","参考","注意事项",
+    "农业防治","化学防治","物理","生物防治","应急处理","传播途径",
+    "危害部位","病原","病因","田间诊断","防治建议"
+  ];
+
+  // 病害名关键词（可按你文档再增减）
+  const key = /(病|疫|疮|腐|萎|霉|枯|斑|黑|白|病毒|线虫|青枯)/;
+
+  function isDiseaseTitleEl(el){
+    const text = normalizeText(el.textContent);
+    if (!text) return false;
+
+    // 过滤小节
+    if (stopWords.some(w => text.includes(w))) return false;
+
+    // ✅ A) 编号式：1. 晚疫病
+    const m = text.match(/^(\d{1,2})[\.、]\s*(.+)$/);
+    if (m) {
+      const name = (m[2] || "").trim();
+      if (!name) return false;
+      if (!key.test(name)) return false;
+      if (name.length > 24) return false;
+      return true;
+    }
+
+    // ✅ B) 标题式：<h1>晚疫病</h1> / <h2>...</h2>
+    const tag = (el.tagName || "").toUpperCase();
+    const isHeadingTag = ["H1","H2","H3"].includes(tag);
+
+    // 有些情况下 mammoth/样式会以 class 体现（兜底）
+    const cls = (el.className || "").toLowerCase();
+    const looksLikeHeadingClass = cls.includes("heading") || cls.includes("title");
+
+    if (isHeadingTag || looksLikeHeadingClass) {
+      if (!key.test(text)) return false;
+      if (text.length > 24) return false;
+      return true;
+    }
+
+    return false;
+  }
+
+  // 找到所有条目起点
+  const startPoints = [];
+  for (let i=0;i<sliced.length;i++){
+    if (isDiseaseTitleEl(sliced[i])) startPoints.push(i);
+  }
+  if (startPoints.length === 0) return [];
+
+  // 构造每个条目的 HTML
+  const items = [];
+  for (let k=0;k<startPoints.length;k++){
+    const a = startPoints[k];
+    const b = (k < startPoints.length - 1) ? startPoints[k+1] : sliced.length;
+
+    const titleRaw = normalizeText(sliced[a].textContent);
+
+    // 兼容编号标题/纯标题
+    const title = titleRaw.replace(/^(\d{1,2})[\.、]\s*/, "").trim();
+
+    const sectionNodes = sliced.slice(a, b);
+    const sectionWrap = document.createElement("div");
+    sectionNodes.forEach(n => sectionWrap.appendChild(n.cloneNode(true)));
+
+    // 首张图做缩略图
+    const firstImg = sectionWrap.querySelector("img");
+    const thumb = firstImg?.getAttribute("src") || "";
+
+    const detailHtml = `
+      <div class="ency-detail-title">${escapeHtml(title)}</div>
+      <div class="ency-detail-content">${sectionWrap.innerHTML}</div>
+    `;
+
+    items.push({
+      id: `d-${k}-${Date.now()}`,
+      title,
+      thumb,
+      html: detailHtml
+    });
+  }
+
+  // 简单去重（同名条目只保留第一个）
+  const seen = new Set();
+  return items.filter(it => {
+    const k = it.title;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+function renderEncyclopediaList(items){
+  const body = document.getElementById('encyBody');
+  if (!body) return;
+
+  const grid = document.createElement("div");
+  grid.className = "ency-grid";
+  grid.id = "encyGrid";
+
+  // ✅ btoa 中文报错修复：用 b64EncodeUnicode + 允许中文 SVG 文本
+  const fallbackSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="450">
+      <defs>
+        <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0" stop-color="#d4ead4"/>
+          <stop offset="1" stop-color="#a8d5ba"/>
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#g)"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-size="40" fill="#5a8f6f" font-family="Arial">
+        病害图片
+      </text>
+    </svg>
+  `.trim();
+  const fallbackDataUrl = "data:image/svg+xml;base64," + b64EncodeUnicode(fallbackSvg);
+
+  items.forEach((it) => {
+    const card = document.createElement("div");
+    card.className = "ency-card";
+    card.dataset.title = it.title;
+
+    const img = document.createElement("img");
+    img.className = "ency-thumb";
+    img.alt = it.title;
+    img.src = it.thumb || fallbackDataUrl;
+
+    const bodyDiv = document.createElement("div");
+    bodyDiv.className = "ency-card-body";
+    bodyDiv.innerHTML = `
+      <div class="ency-title">${escapeHtml(it.title)}</div>
+      <div class="ency-meta">点击查看详情</div>
+    `;
+
+    card.appendChild(img);
+    card.appendChild(bodyDiv);
+    card.onclick = () => renderEncyclopediaDetail(it);
+
+    grid.appendChild(card);
+  });
+
+  body.innerHTML = "";
+  body.appendChild(grid);
+
+  // 清空搜索框 & 应用过滤
+  const s = document.getElementById("encySearch");
+  if (s && !s.value) filterEncyCards();
+}
+
+function renderEncyclopediaDetail(item){
+  const body = document.getElementById('encyBody');
+  if (!body) return;
+
+  body.innerHTML = `
+    <div class="ency-detail">
+      ${item.html}
+      <div style="display:flex; gap:10px; padding: 8px 0 14px;">
+        <button class="risk-action" onclick="renderEncyclopediaList(encyclopediaItems)">返回列表</button>
+        <button class="risk-action" onclick="scrollToTopEncy()">回到顶部</button>
+      </div>
+    </div>
+  `;
+  scrollToTopEncy();
+}
+
+function scrollToTopEncy(){
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function filterEncyCards(){
+  const q = (document.getElementById("encySearch")?.value || "").trim().toLowerCase();
+  const grid = document.getElementById("encyGrid");
+  if (!grid) return;
+
+  const cards = grid.querySelectorAll(".ency-card");
+  cards.forEach(c => {
+    const t = (c.dataset.title || "").toLowerCase();
+    c.style.display = (!q || t.includes(q)) ? "" : "none";
+  });
+}
+
+
+    window.onload = function() {
+      console.log('马铃薯病害检测系统已启动');
+      const dropdown = document.getElementById('modelDropdown');
+      if (dropdown) dropdown.value = currentModel;
+      initVoiceRecognition();
+    };
+  </script>
+</body>
+</html>

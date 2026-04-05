@@ -1,0 +1,14 @@
+# 后端 API 依赖（在项目根目录或 backend 目录下 pip install -r backend/requirements.txt）
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+python-multipart>=0.0.6
+openai>=1.0.0
+python-dotenv>=1.0.0
+requests>=2.25.0
+# 与项目共用
+numpy
+opencv-python
+ultralytics>=8.0.0
+SQLAlchemy>=1.4
+# 时序预测
+tensorflow>=2.0.0
